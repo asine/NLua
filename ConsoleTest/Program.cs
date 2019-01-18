@@ -4,30 +4,31 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NLua;
+using NLuaTest.Mock;
+using NLuaTest;
 
 namespace ConsoleTest
 {
-	class Program
+
+	public class Program
 	{
+		static public void Method(int a, params int[] others) {
+			Console.WriteLine (a);
+			foreach (int val in others)
+				Console.WriteLine (val);
+		}
+
 		static void Main (string [] args)
 		{
-
-			using (Lua lua = new Lua ()) {
-				lua.DoString ("luanet.load_assembly('mscorlib')");
-				lua.DoString ("luanet.load_assembly('ConsoleTest')");
-				lua.DoString ("TestClass=luanet.import_type('NLuaTest.Mock.TestClass')");
-				lua.DoString ("test=TestClass()");
-
-				try {
-					lua.DoString ("test:exceptionMethod()");
-					//failed
-					//Assert.True (false);
-				} catch (Exception) {
-					//passed
-					//Assert.True (true);
-				}
+			using (var l = new Lua ()) {
+				l.LoadCLRPackage ();
+				l.DoString (" import ('ConsoleTest', 'NLuaTest.Mock') ");
+				l.DoString (@"
+						e1 = Entity()
+						e2 = Entity ('Another world')
+						e3 = Entity (10)
+				");
 			}
-
 		}
 	}
 }

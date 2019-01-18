@@ -1,10 +1,14 @@
 using System;
+#if WINDOWS_PHONE || NET_3_5
 using System.Collections.Generic;
+#else
+using System.Collections.Concurrent;
+#endif
 
 /*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2015 Vinicius Jarina (viniciusjarina@gmail.com)
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,8 +42,12 @@ namespace NLua
 	internal class ObjectTranslatorPool
 	{
 		private static volatile ObjectTranslatorPool instance = new ObjectTranslatorPool ();		
+#if WINDOWS_PHONE || NET_3_5
 		private Dictionary<LuaState, ObjectTranslator> translators = new Dictionary<LuaState, ObjectTranslator>();
-		
+#else
+		private ConcurrentDictionary<LuaState, ObjectTranslator> translators = new ConcurrentDictionary<LuaState, ObjectTranslator>();
+#endif
+
 		public static ObjectTranslatorPool Instance
 		{
 			get
@@ -54,23 +62,51 @@ namespace NLua
 		
 		public void Add (LuaState luaState, ObjectTranslator translator)
 		{
-			translators.Add(luaState , translator);			
+#if WINDOWS_PHONE || NET_3_5
+			lock (translators)
+				translators.Add (luaState, translator);			
+#else
+			if (!translators.TryAdd (luaState, translator))
+				throw new ArgumentException ("An item with the same key has already been added. ", "luaState");
+#endif
 		}
-		
+
 		public ObjectTranslator Find (LuaState luaState)
 		{
-			if (!translators.ContainsKey(luaState))
-				return null;
+#if WINDOWS_PHONE || NET_3_5
+			lock (translators) 
+			{
+#endif
+			ObjectTranslator translator;
+
+			if (!translators.TryGetValue (luaState, out translator))
+			{
+				LuaState main = LuaCore.LuaNetGetMainState (luaState);
+
+				if (!translators.TryGetValue (main, out translator))
+					translator = null;
+			}
 			
-			return translators [luaState];
+			return translator;
+#if WINDOWS_PHONE || NET_3_5
+			}
+#endif
 		}
 		
 		public void Remove (LuaState luaState)
 		{
-			if (!translators.ContainsKey (luaState))
-				return;
+#if WINDOWS_PHONE || NET_3_5
+			lock (translators)
+			{
+				if (!translators.ContainsKey (luaState))
+					return;
 			
-			translators.Remove (luaState);
+				translators.Remove (luaState);
+			}
+#else
+			ObjectTranslator translator;
+			translators.TryRemove (luaState, out translator);
+#endif 
 		}
 	}
 }

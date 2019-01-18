@@ -15,7 +15,7 @@ using NUnit.Framework;
 #endif
 
 #if MONOTOUCH
-using MonoTouch.Foundation;
+using Foundation;
 #endif
 
 namespace NLuaTest
@@ -49,7 +49,13 @@ namespace NLuaTest
 		public void Setup()
 		{
 			lua = new Lua ();
-			lua.RegisterFunction ("print", typeof (Console).GetMethod ("WriteLine", new Type [] { typeof(String) }));
+			lua.RegisterFunction ("WriteLineString", typeof (Console).GetMethod ("WriteLine", new Type [] { typeof (String) }));
+			
+			lua.DoString (@"
+			function print (param)
+				WriteLineString (tostring(param))
+			end
+			");
 		}
 		
 		[TearDown]

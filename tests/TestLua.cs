@@ -192,23 +192,33 @@ namespace NLuaTest.Mock
 		}
 	}
 
-	/// <summary>
-	/// test structure passing
-	/// </summary>
-	public struct TestStruct
-	{
-		public TestStruct (float val)
-		{
-			v = val;
-		}
+    /// <summary>
+    /// test structure passing
+    /// </summary>
+    public struct TestStruct
+    {
+        public TestStruct(float val)
+        {
+            v = val;
+        }
 
-		public float v;
+        public float v;
 
-		public float val {
-			get { return v; }
-			set { v = value; }
-		}
-	}
+        public float val
+        {
+            get { return v; }
+            set { v = value; }
+        }
+    }
+
+    /// <summary>
+    /// test enum
+    /// </summary>
+    public enum TestEnum
+    {
+        ValueA,
+        ValueB
+    }
 
 	/// <summary>
 	/// Generic class with generic and non-generic methods
@@ -362,6 +372,24 @@ namespace NLuaTest.Mock
 		public int this [string index] {
 			get { return 1; }
 			set { }
+		}
+
+		public TimeSpan? NullableMethod (TimeSpan? input)
+		{
+			return input;
+		}
+
+		public int? NullableMethod2 (int? input)
+		{
+			return input;
+		}
+
+		public object[] TestLuaFunction (LuaFunction func)
+		{
+			if (func != null) {
+				return func.Call (1, 2);
+			}
+			return null;
 		}
 
 		public int sum (int x, int y)
@@ -576,5 +604,42 @@ namespace NLuaTest.Mock
 			}
 			Console.WriteLine(output);
 		}
+
+		static public int MethodWithParams (int a, params int[] others) {
+			Console.WriteLine (a);
+			int i = 0;
+			foreach (int val in others) {
+				Console.WriteLine (val);
+				i++;
+			}
+			return i;
+		}
+
+	    static public int MethodWithObjectParams(params object[] others)
+	    {
+	        int i = 0;
+	        foreach (var val in others)
+	        {
+	            Console.WriteLine(val);
+	            i++;
+	        }
+	        return i;
+	    }
+    }
+
+	public class TestClassWithOverloadedMethod
+	{
+		public int CallsToStringFunc {get;set;}
+		public int CallsToIntFunc {get;set;}
+		public void Func (string param)
+		{
+			CallsToStringFunc++;
+		}
+
+		public void Func (int param)
+		{
+			CallsToIntFunc++;
+		}
+
 	}
 }

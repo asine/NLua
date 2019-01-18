@@ -1,7 +1,7 @@
 /*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2015 Vinicius Jarina (viniciusjarina@gmail.com)
  * Copyright (C) 2003-2005 Fabio Mascarenhas de Queiroz.
  * Copyright (C) 2012 Megax <http://megax.yeahunter.hu/>
  * 
@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 using System;
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !NETFX_CORE
 using System.Runtime.Serialization;
 #endif
 
@@ -33,7 +33,7 @@ namespace NLua.Exceptions
 	/// <summary>
 	/// Exceptions thrown by the Lua runtime
 	/// </summary>
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !NETFX_CORE
 	[Serializable]
 #endif
 	public class LuaException : Exception
@@ -50,7 +50,7 @@ namespace NLua.Exceptions
 		{
 		}
 
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !NETFX_CORE
 		protected LuaException (SerializationInfo info, StreamingContext context) : base(info, context)
 		{
 		}

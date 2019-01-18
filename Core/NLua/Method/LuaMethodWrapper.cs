@@ -25,6 +25,7 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Linq;
 using NLua.Exceptions;
 using NLua.Extensions;
 
@@ -54,19 +55,19 @@ namespace NLua.Method
 	class LuaMethodWrapper
 	{
 		internal LuaNativeFunction invokeFunction;
-		private ObjectTranslator _Translator;
-		private MethodBase _Method;
-		private MethodCache _LastCalledMethod = new MethodCache ();
-		private string _MethodName;
-		private MemberInfo[] _Members;
-		private ExtractValue _ExtractTarget;
-		private object _Target;
-		private BindingFlags _BindingType;
+		ObjectTranslator _Translator;
+		MethodBase _Method;
+		MethodCache _LastCalledMethod = new MethodCache ();
+		string _MethodName;
+		MemberInfo[] _Members;
+		ExtractValue _ExtractTarget;
+		object _Target;
+		bool _IsStatic;
 
 		/*
 		 * Constructs the wrapper for a known MethodBase instance
 		 */
-		public LuaMethodWrapper (ObjectTranslator translator, object target, IReflect targetType, MethodBase method)
+		public LuaMethodWrapper (ObjectTranslator translator, object target, ProxyType targetType, MethodBase method)
 		{
 			invokeFunction = new LuaNativeFunction (this.Call);
 			_Translator = translator;
@@ -77,17 +78,13 @@ namespace NLua.Method
 
 			_Method = method;
 			_MethodName = method.Name;
-
-			if (method.IsStatic)
-				_BindingType = BindingFlags.Static;
-			else
-				_BindingType = BindingFlags.Instance;
+			_IsStatic = method.IsStatic;
 		}
 
 		/*
 		 * Constructs the wrapper for a known method name
 		 */
-		public LuaMethodWrapper (ObjectTranslator translator, IReflect targetType, string methodName, BindingFlags bindingType)
+		public LuaMethodWrapper (ObjectTranslator translator, ProxyType targetType, string methodName, BindingFlags bindingType)
 		{
 			invokeFunction = new LuaNativeFunction (this.Call);
 
@@ -97,9 +94,23 @@ namespace NLua.Method
 			if (targetType != null)
 				_ExtractTarget = translator.typeChecker.GetExtractor (targetType);
 
-			_BindingType = bindingType;
-			//CP: Removed NonPublic binding search and added IgnoreCase
-			_Members = targetType.UnderlyingSystemType.GetMember (methodName, MemberTypes.Method, bindingType | BindingFlags.Public | BindingFlags.IgnoreCase/*|BindingFlags.NonPublic*/);
+			_IsStatic = (bindingType & BindingFlags.Static) == BindingFlags.Static;
+			_Members  = GetMethodsRecursively (targetType.UnderlyingSystemType, methodName, bindingType | BindingFlags.Public);
+		}
+
+		MethodInfo [] GetMethodsRecursively (Type type, string methodName, BindingFlags bindingType)
+		{
+			if (type == typeof(object))
+				return type.GetMethods (methodName, bindingType);
+
+			var methods = type.GetMethods (methodName, bindingType);
+#if NETFX_CORE
+			var baseMethods = GetMethodsRecursively (type.GetTypeInfo ().BaseType, methodName, bindingType);
+#else
+			var baseMethods = GetMethodsRecursively (type.BaseType, methodName, bindingType);
+#endif
+
+			return methods.Concat (baseMethods).ToArray ();
 		}
 
 		/// <summary>
@@ -126,7 +137,7 @@ namespace NLua.Method
 			if (!LuaLib.LuaCheckStack (luaState, 5))
 				throw new LuaException ("Lua stack overflow");
 
-			bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
+			bool isStatic = _IsStatic;
 			SetPendingException (null);
 
 			if (methodToCall == null) { // Method from name
@@ -158,7 +169,7 @@ namespace NLua.Method
 								};
 
 								if (_LastCalledMethod.argTypes [i].isParamsArray) {
-									int count = index - _LastCalledMethod.argTypes.Length;
+									int count = _LastCalledMethod.argTypes.Length - i;
 									Array paramArray = _Translator.TableToArray (valueExtractor, type.paramsArrayType, index, count);
 									args [_LastCalledMethod.argTypes [i].index] = paramArray;
 								} else {
@@ -170,7 +181,7 @@ namespace NLua.Method
 									throw new LuaException (string.Format("argument number {0} is invalid",(i + 1)));
 							}
 
-							if ((_BindingType & BindingFlags.Static) == BindingFlags.Static)
+							if (_IsStatic)
 								_Translator.Push (luaState, method.Invoke (null, _LastCalledMethod.args));
 							else {
 								if (method.IsConstructor)
@@ -182,6 +193,7 @@ namespace NLua.Method
 							failedCall = false;
 						} catch (TargetInvocationException e) {
 							// Failure of method invocation
+							if (_Translator.interpreter.UseTraceback) e.GetBaseException().Data["Traceback"] = _Translator.interpreter.GetDebugTraceback();
 							return SetPendingException (e.GetBaseException ());
 						} catch (Exception e) {
 							if (_Members.Length == 1) // Is the method overloaded?
@@ -209,7 +221,11 @@ namespace NLua.Method
 					string candidateName = null;
 
 					foreach (var member in _Members) {
+#if NETFX_CORE
+						candidateName = member.DeclaringType.Name + "." + member.Name;
+#else
 						candidateName = member.ReflectedType.Name + "." + member.Name;
+#endif
 						var m = (MethodInfo)member;
 						bool isMethod = _Translator.MatchParameters (luaState, m, ref _LastCalledMethod);
 
@@ -274,6 +290,7 @@ namespace NLua.Method
 							_Translator.Push (luaState, _LastCalledMethod.cachedMethod.Invoke (targetObject, _LastCalledMethod.args));
 					}
 				} catch (TargetInvocationException e) {
+					if (_Translator.interpreter.UseTraceback) e.GetBaseException().Data["Traceback"] = _Translator.interpreter.GetDebugTraceback();
 					return SetPendingException (e.GetBaseException ());
 				} catch (Exception e) {
 					return SetPendingException (e);

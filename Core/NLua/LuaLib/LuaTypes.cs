@@ -1,7 +1,7 @@
 /*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2015 Vinicius Jarina (viniciusjarina@gmail.com)
  * Copyright (C) 2003-2005 Fabio Mascarenhas de Queiroz.
  * Copyright (C) 2009 Joshua Simmons <simmons.44@gmail.com>
  * Copyright (C) 2012 Megax <http://megax.yeahunter.hu/>
@@ -27,7 +27,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !NETFX_CORE
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
 using NLua.Extensions;

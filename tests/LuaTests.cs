@@ -7,7 +7,7 @@ using System.Threading;
 using NLua;
 using NLua.Exceptions;
 #if MONOTOUCH
-using MonoTouch.Foundation;
+using Foundation;
 #endif
 
 #if WINDOWS_PHONE
@@ -21,13 +21,149 @@ using NUnit.Framework;
 
 namespace NLuaTest
 {
+	public class parameter
+	{
+		public string field1 = "parameter-field1";
+	}
+
+	#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+	#endif
+	public class master
+	{
+		public static string read()
+		{
+			return "test-master";
+		}
+
+		public static string read( parameter test )
+		{
+			return test.field1;
+		}
+	}
+
+	#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+	#endif
+	public class testClass : master 
+	{
+		public String strData;
+		public int intData;
+		public static string read2()
+		{
+			return "test";
+		}
+
+		public static string read( int test )
+		{
+			return "int-test";
+		}
+	}
+
+	#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+	#endif
+	public class DefaultElementModel
+	{  
+		public Action<double> DrawMe{ get; set; }  
+	}  
    
+	#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+	#endif
+	public class TestCaseName {
+		public string name = "name";
+		public string Name {
+			get {
+				return "**" + name + "**";
+			}
+		}
+	}
+
+
+
+#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+#endif
+	public class Vector
+	{
+		public double x;
+		public double y;
+		public static Vector operator * (float k, Vector v)
+		{
+			var r = new Vector ();
+			r.x = v.x * k;
+			r.y = v.y * k;
+			return r;
+		}
+
+		public static Vector operator * (Vector v, float k)
+		{
+			var r = new Vector ();
+			r.x = v.x * k;
+			r.y = v.y * k;
+			return r;
+		}
+
+		public void Func ()
+		{
+			Console.WriteLine ("Func");
+		}
+	}
+
+	public static class VectorExtension
+	{
+		public static double Length (this Vector v)
+		{
+			return v.x * v.x + v.y * v.y;
+		}
+	}
+	
+#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+#endif
+	public class Person
+	{
+		public string firstName;
+	}
+	
+#if MONOTOUCH
+	[Preserve (AllMembers = true)]
+#endif
+	public class Employee : Person
+	{
+		public string occupation;
+	}
+	
+	public static class PersonExentsions
+	{
+		public static string GetFirstName (this Person argPerson)
+		{
+			return argPerson.firstName;
+		}
+	}
+
 	[TestFixture]
 	#if MONOTOUCH
 	[Preserve (AllMembers = true)]
 	#endif
 	public class LuaTests
 	{
+		public static readonly char UnicodeChar = '\uE007';
+		public static string UnicodeString
+		{
+			get
+			{
+				return Convert.ToString (UnicodeChar);
+			}
+		}
+		public static string UnicodeStringRussian
+		{
+			get
+			{
+				return "Файл";
+			}
+		}
 		/*
         * Tests capturing an exception
         */
@@ -45,6 +181,26 @@ namespace NLuaTest
 				Assert.AreEqual (false , err);
 				Assert.AreNotEqual (null, errMsg.InnerException);
 				Assert.AreEqual ("exception test", errMsg.InnerException.Message);
+			}
+		}
+
+		/*
+		* Tests passing a LuaFunction
+		*/
+		[Test]
+		public void CallLuaFunction()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.DoString ("function someFunc(v1,v2) return v1 + v2 end");
+				lua ["funcObject"] = lua.GetFunction ("someFunc");
+
+				lua.DoString ("luanet.load_assembly('mscorlib')");
+				lua.DoString ("luanet.load_assembly('NLuaTest')");
+				lua.DoString ("TestClass=luanet.import_type('NLuaTest.Mock.TestClass')");
+				lua.DoString ("b = TestClass():TestLuaFunction(funcObject)[0]");
+				Assert.AreEqual (3, lua ["b"]);
+				lua.DoString ("a = TestClass():TestLuaFunction(nil)");
+				Assert.AreEqual (null, lua ["a"]);
 			}
 		}
 
@@ -91,7 +247,6 @@ namespace NLuaTest
 			}
 		}
 
-
 		/*
         * Tests structure assignment
         */
@@ -109,6 +264,49 @@ namespace NLuaTest
 				Assert.AreEqual (2.0d, (double)lua ["val"]);
 			}
 		}
+
+		/*
+		* Tests structure creation via the default constructor
+		*/
+		[Test]
+		public void TestStructDefaultConstructor ()
+		{
+			using (Lua lua = new Lua ())
+			{
+				lua.DoString ("luanet.load_assembly('NLuaTest')");
+				lua.DoString ("TestStruct=luanet.import_type('NLuaTest.Mock.TestStruct')");
+				lua.DoString ("struct=TestStruct()");
+				Assert.AreEqual (new TestStruct(), (TestStruct)lua ["struct"]);
+			}
+		}
+
+        [Test]
+        public void TestStructHashesEqual()
+        {
+            using (Lua lua = new Lua())
+            {
+                lua.DoString("luanet.load_assembly('NLuaTest')");
+                lua.DoString("TestStruct=luanet.import_type('NLuaTest.Mock.TestStruct')");
+                lua.DoString("struct1=TestStruct(0)");
+                lua.DoString("struct2=TestStruct(0)");
+                lua.DoString("struct2.val=1");
+                Assert.AreEqual(0, (double)lua["struct1.val"]);
+            }
+        }
+
+        [Test]
+        public void TestEnumEqual()
+        {
+            using (Lua lua = new Lua())
+            {
+                lua.DoString("luanet.load_assembly('NLuaTest')");
+                lua.DoString("TestEnum=luanet.import_type('NLuaTest.Mock.TestEnum')");
+                lua.DoString("enum1=TestEnum.ValueA");
+                lua.DoString("enum2=TestEnum.ValueB");
+                Assert.AreEqual(true, (bool)lua.DoString("return enum1 ~= enum2")[0]);
+                Assert.AreEqual(false, (bool)lua.DoString("return enum1 == enum2")[0]);
+            }
+        }
 
 		[Test]
 		public void TestMethodOverloads ()
@@ -471,6 +669,29 @@ namespace NLuaTest
 				lua.RegisterFunction ("func2", obj, typeof(TestClass2).GetMethod ("funcInstance"));
 				vals1 = lua.GetFunction ("func2").Call (2, 3);
 				Assert.AreEqual (5.0f, Convert.ToSingle (vals1 [0]));
+			}
+		}
+	
+		/*
+		 * Tests passing a null object as a parameter to a
+		 * method that accepts a nullable.
+		 */
+		[Test]
+		public void TestNullableParameter ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.DoString ("luanet.load_assembly('NLuaTest')");
+				lua.DoString ("TestClass=luanet.import_type('NLuaTest.Mock.TestClass')");
+				lua.DoString ("test=TestClass()");
+				lua.DoString ("a = test:NullableMethod(nil)");
+				Assert.AreEqual (null, lua ["a"]);
+				lua ["timeVal"] = TimeSpan.FromSeconds (5);
+				lua.DoString ("b = test:NullableMethod(timeVal)");
+				Assert.AreEqual (TimeSpan.FromSeconds (5), lua ["b"]);
+				lua.DoString ("d = test:NullableMethod2(2)");
+				Assert.AreEqual (2, lua ["d"]);
+				lua.DoString ("c = test:NullableMethod2(nil)");
+				Assert.AreEqual (null, lua ["c"]);
 			}
 		}
 
@@ -1838,5 +2059,506 @@ namespace NLuaTest
 			}
 		}
 
+		[Test]
+		public void TestUnicodeChars ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+				lua.DoString ("import('NLuaTest')");
+				lua.DoString ("res = LuaTests.UnicodeString");
+				string res = (string)lua ["res"];
+
+				Assert.AreEqual (LuaTests.UnicodeString, res);
+			}
+		}
+
+		[Test]
+		public void TestUnicodeCharsInDoString()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.DoString("res = 'Файл'");
+				string res = (string)lua["res"];
+
+				Assert.AreEqual(LuaTests.UnicodeStringRussian, res);
+			}
+		}
+
+		[Test]
+		public void TestCoroutine ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+				lua.RegisterFunction ("func1", null, typeof (TestClass2).GetMethod ("func"));
+				lua.DoString ("function yielder() " +
+								"a=1;" + "coroutine.yield();" +
+								"func1(3,2);" + "coroutine.yield();" + // This line triggers System.NullReferenceException
+								"a=2;" + "coroutine.yield();" +
+							 "end;" +
+							 "co_routine = coroutine.create(yielder);" +
+							 "while coroutine.resume(co_routine) do end;");
+
+				double num = lua.GetNumber ("a");
+				//Console.WriteLine("a="+num);
+				Assert.AreEqual (num, 2d);
+			}
+		}
+
+		[Test]
+		public void TestDebugHook ()
+		{
+			int [] lines = { 1, 2, 1, 3 };
+			int line = 0;
+
+			using (Lua lua = new Lua ()) {
+				lua.DebugHook += (sender,args) => {
+					Assert.AreEqual (args.LuaDebug.currentline,lines [line]);
+					line ++;
+				};
+				lua.SetDebugHook (NLua.Event.EventMasks.LUA_MASKLINE, 0);
+
+				lua.DoString (@"function testing_hooks() return 10 end
+							val = testing_hooks() 
+							val = val + 1");
+			}
+		}
+
+		[Test]
+		public void TestKeyWithDots ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.DoString (@"g_dot = {} 
+							 g_dot['key.with.dot'] = 42");
+
+				Assert.AreEqual (42, (int)(double)lua ["g_dot.key\\.with\\.dot"]);
+			}
+		}
+#if !WINDOWS_PHONE && !NET_3_5
+		[Test]
+		public void TestOperatorAdd ()
+		{
+			using (Lua lua = new Lua ()) {
+				var a = new System.Numerics.Complex (10, 0);
+				var b = new System.Numerics.Complex (0, 3);
+				var x = a + b;
+
+				lua ["a"] = a;
+				lua ["b"] = b;
+				var res = lua.DoString (@"return a + b") [0];
+				Assert.AreEqual (x, res);
+			}
+		}
+
+		[Test]
+		public void TestOperatorMinus ()
+		{
+			using (Lua lua = new Lua ()) {
+				var a = new System.Numerics.Complex (10, 0);
+				var b = new System.Numerics.Complex (0, 3);
+				var x = a - b;
+
+				lua ["a"] = a;
+				lua ["b"] = b;
+				var res = lua.DoString (@"return a - b") [0];
+				Assert.AreEqual (x, res);
+			}
+		}
+
+		[Test]
+		public void TestOperatorMultiply ()
+		{
+			using (Lua lua = new Lua ()) {
+				var a = new System.Numerics.Complex (10, 0);
+				var b = new System.Numerics.Complex (0, 3);
+				var x = a * b;
+
+				lua ["a"] = a;
+				lua ["b"] = b;
+				var res = lua.DoString (@"return a * b") [0];
+				Assert.AreEqual (x, res);
+			}
+		}
+
+		[Test]
+		public void TestOperatorEqual ()
+		{
+			using (Lua lua = new Lua ()) {
+				var a = new System.Numerics.Complex (10, 0);
+				var b = new System.Numerics.Complex (0, 3);
+				var x = a == b;
+
+				lua ["a"] = a;
+				lua ["b"] = b;
+				var res = lua.DoString (@"return a == b") [0];
+				Assert.AreEqual (x, res);
+			}
+		}
+
+		[Test]
+		public void TestOperatorNotEqual ()
+		{
+			using (Lua lua = new Lua ()) {
+				var a = new System.Numerics.Complex (10, 0);
+				var b = new System.Numerics.Complex (0, 3);
+				var x = a != b;
+
+				lua ["a"] = a;
+				lua ["b"] = b;
+				var res = lua.DoString (@"return a ~= b") [0];
+				Assert.AreEqual (x, res);
+			}
+		}
+
+		[Test]
+		public void TestUnaryMinus ()
+		{
+			using (Lua lua = new Lua ()) {
+
+				lua.LoadCLRPackage ();
+				lua.DoString (@" import ('System.Numerics')
+							  c = Complex (10, 5) 
+							  c = -c ");
+
+				var expected = new System.Numerics.Complex (-10, -5);
+
+				var res = lua ["c"];
+				Assert.AreEqual (expected, res);
+			}
+		}
+#endif
+		[Test]
+		public void TestCaseFields ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+
+				lua.DoString (@" import ('NLuaTest')
+							  x = TestCaseName()
+							  name  = x.name;
+							  name2 = x.Name;
+							  Name = x.Name;
+							  Name2 = x.name");
+
+				Assert.AreEqual ("name", lua ["name"]);
+				Assert.AreEqual ("**name**", lua ["name2"]);
+				Assert.AreEqual ("**name**", lua ["Name"]);
+				Assert.AreEqual ("name", lua ["Name2"]);
+			}
+		}
+
+		[Test]
+		public void TestStaticOperators ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+
+				lua.DoString (@" import ('NLuaTest')
+							  v = Vector()
+							  v.x = 10
+							  v.y = 3
+							  v = v*2 ");
+
+				var v = (Vector)lua ["v"];
+
+				Assert.AreEqual (20, v.x, "#1");
+				Assert.AreEqual (6, v.y, "#2");
+
+				lua.DoString (@" x = 2 * v");
+				var x = (Vector)lua ["x"];
+
+				Assert.AreEqual (40, x.x, "#3");
+				Assert.AreEqual (12, x.y, "#4");
+			}
+		}
+
+		[Test]
+		public void TestExtensionMethods ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+
+				lua.DoString (@" import ('NLuaTest')
+							  v = Vector()
+							  v.x = 10
+							  v.y = 3
+							  v = v*2 ");
+
+				var v = (Vector)lua ["v"];
+
+				double len = v.Length ();
+				lua.DoString (" v:Length() ");
+				lua.DoString (@" len2 = v:Length()");
+				double len2 = (double)lua ["len2"];
+				Assert.AreEqual (len, len2, "#1");
+			}
+		}
+		
+		[Test]
+		public void TestBaseClassExtensionMethods ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+
+				lua.DoString (@" import ('NLuaTest')
+							  p = Employee()
+							  p.firstName = 'Paulo'
+							  p.occupation = 'Programmer'");
+
+				var p = (Person)lua ["p"];
+
+				string name = p.GetFirstName();
+				lua.DoString (" p:GetFirstName() ");
+				lua.DoString (@" name2 = p:GetFirstName()");
+				string name2 = (string)lua ["name2"];
+				Assert.AreEqual (name, name2, "#1");
+			}
+		}
+
+		[Test]
+		public void TestOverloadedMethods ()
+		{
+			using (Lua lua = new Lua ()) {
+				var obj = new TestClassWithOverloadedMethod ();
+				lua ["obj"] = obj;
+				lua.DoString (@" 
+								obj:Func (10)
+								obj:Func ('10')
+								obj:Func (10)
+								obj:Func ('10')
+								obj:Func (10)
+								");
+				Assert.AreEqual (3, obj.CallsToIntFunc,"#integer");
+				Assert.AreEqual (2, obj.CallsToStringFunc, "#string");
+			}
+		}
+
+		[Test]
+		public void TestGetStack ()
+		{
+			using (Lua lua = new Lua ()) {
+				lua.LoadCLRPackage ();
+				m_lua = lua;
+				lua.DoString (@" 
+								import ('NLuaTest')
+								function f1 ()
+									 f2 ()
+								 end
+								 
+								function f2()
+									f3()
+								end
+
+								function f3()
+									LuaTests.func()
+								end
+								
+								f1 ()
+								");
+			}
+			m_lua = null;
+		}
+
+		public static void func()
+		{
+#if USE_KOPILUA
+			string expected = "[0] [C]:-1 -- func [field]\n[1] [string \"chunk\"]:12 -- f3 [global]\n[2] [string \"chunk\"]:8 -- f2 [global]\n[3] [string \"chunk\"]:4 -- f1 [global]\n[4] [string \"chunk\"]:15 -- <unknow> []\n";
+			KopiLua.LuaDebug info = new KopiLua.LuaDebug ();
+#else
+			//string expected = "[0] func:-1 -- <unknown> [func]\n[1] f3:12 -- <unknown> [f3]\n[2] f2:8 -- <unknown> [f2]\n[3] f1:4 -- <unknown> [f1]\n[4] :15 --  []\n";
+			KeraLua.LuaDebug info = new KeraLua.LuaDebug ();
+#endif
+
+			int level = 0;
+			StringBuilder sb = new StringBuilder ();
+			while (m_lua.GetStack (level,ref info) != 0) {
+				m_lua.GetInfo ("nSl", ref info);
+				string name = "<unknow>";
+				if (info.name != null && !string.IsNullOrEmpty(info.name.ToString()))
+					name = info.name.ToString ();
+
+				sb.AppendFormat ("[{0}] {1}:{2} -- {3} [{4}]\n",
+					level, info.shortsrc, info.currentline,
+					name, info.namewhat);
+				++level;
+			}
+			string x = sb.ToString ();
+			Assert.True (!string.IsNullOrEmpty(x));
+		}
+
+		[Test]
+		public void TestCallImplicitBaseMethod ()
+		{
+			using (var l = new Lua ()) {
+				l.LoadCLRPackage ();
+				l.DoString ("import ('NLuaTest')");
+				l.DoString ("res = testClass.read() ");
+				string res = (string)l ["res"];
+				Assert.AreEqual (testClass.read (), res);
+			}
+		}
+
+		[Test]
+		public void TestPushLuaFunctionWhenReadingDelegateProperty ()
+		{
+			bool called = false;
+			var _model = new DefaultElementModel ();
+			_model.DrawMe = (x) => {
+				called = true;
+			};
+			using (var l = new Lua ()) {
+				l ["model"] = _model;
+				l.DoString (@" model.DrawMe (0) ");
+			}
+
+			Assert.True (called);
+		}
+
+		[Test]
+		public void TestCallDelegateWithParameters ()
+		{
+			string sval = "";
+			int nval = 0;
+			using (var l = new Lua ()) {
+				Action<string,int> c = (s, n) => { sval = s; nval = n; };
+				l ["d"] = c;
+				l.DoString (" d ('string', 10) ");
+			}
+
+			Assert.AreEqual ("string", sval, "#1");
+			Assert.AreEqual (10 , nval, "#2");
+		}
+
+		[Test]
+		public void TestCallSimpleDelegate ()
+		{
+			bool called = false;
+			using (var l = new Lua ()) {
+				Action c = () => { called = true; };
+				l ["d"] = c;
+				l.DoString (" d () ");
+			}
+
+			Assert.True (called);
+		}
+
+		[Test]
+		public void TestCallDelegateWithWrongParametersShouldFail ()
+		{
+			bool fail = false;
+			using (var l = new Lua ()) {
+				Action c = () => { fail = false; };
+				l ["d"] = c;
+				try {
+				l.DoString (" d (10) ");
+				}
+				catch (LuaScriptException ) {
+					fail = true;
+				}
+			}
+
+			Assert.True (fail);
+		}
+
+		[Test]
+		public void TestOverloadedMethodCallOnBase ()
+		{
+			using (var l = new Lua ()) {
+				l.LoadCLRPackage ();
+				l.DoString (" import ('NLuaTest') ");
+				l.DoString (@"
+					p=parameter()
+					r1 = testClass.read(p)     -- is not working. it is also not working if the method in base class has two parameters instead of one
+					r2 = testClass.read(1)     -- is working				
+				");
+				string r1 = (string) l ["r1"];
+				string r2 = (string) l ["r2"];
+				Assert.AreEqual ("parameter-field1", r1, "#1");
+				Assert.AreEqual ("int-test" , r2, "#2");
+			}
+		}
+
+		[Test]
+		public void TestCallMethodWithParams2 ()
+		{
+			using (var l = new Lua ()) {
+				l.LoadCLRPackage ();
+				l.DoString (" import ('NLuaTest','NLuaTest.Mock') ");
+				l.DoString (@"					
+					r = TestClass.MethodWithParams(2)			
+				");
+				int r =  (int)l.GetNumber ("r");
+				Assert.AreEqual (0, r, "#1");
+			}
+		}
+
+	    [Test]
+	    public void TestCallMethodWithParamsOptional()
+	    {
+	        using (var l = new Lua())
+	        {
+	            l.LoadCLRPackage();
+	            l.DoString(" import ('NLuaTest','NLuaTest.Mock') ");
+	            l.DoString(@"					
+					r = TestClass.MethodWithParams(2, 7, 4)			
+				");
+	            int r = (int)l.GetNumber("r");
+	            Assert.AreEqual(2, r, "#1");
+	        }
+	    }
+
+	    [Test]
+	    public void TestCallMethodWithObjectParams()
+	    {
+	        using (var l = new Lua())
+	        {
+	            l.LoadCLRPackage();
+	            l.DoString(" import ('NLuaTest','NLuaTest.Mock') ");
+	            l.DoString(@"					
+					r = TestClass.MethodWithObjectParams(2, nil, 4, 'abc')			
+				");
+	            int r = (int)l.GetNumber("r");
+	            Assert.AreEqual(4, r, "#1");
+	        }
+	    }
+
+	    [Test]
+	    public void TestCallMethodWithObjectParamsAndNilAsFirstArgument()
+	    {
+	        using (var l = new Lua())
+	        {
+	            l.LoadCLRPackage();
+	            l.DoString(" import ('NLuaTest','NLuaTest.Mock') ");
+	            l.DoString(@"					
+					r = TestClass.MethodWithObjectParams(nil, 4, 'abc')			
+				");
+	            int r = (int)l.GetNumber("r");
+	            Assert.AreEqual(3, r, "#1");
+	        }
+	    }
+
+        [Test]
+		public void TestConstructorOverload ()
+		{
+			using (var l = new Lua ()) {
+				l.LoadCLRPackage ();
+				l.DoString (" import ('NLuaTest','NLuaTest.Mock') ");
+				l.DoString (@"					
+					e1 = Entity()
+					e2 = Entity ('str_param')
+					e3 = Entity (10)
+					p1 = e1.Property
+					p2 = e2.Property
+					p3 = e3.Property
+				");
+				string p1 = l.GetString ("p1");
+				string p2 = l.GetString ("p2");
+				string p3 = l.GetString ("p3");
+				Assert.AreEqual ("Default", p1, "#1");
+				Assert.AreEqual ("String", p2, "#1");
+				Assert.AreEqual ("Int", p3, "#1");
+			}
+		}
+
+		static Lua m_lua;
+					
 	}
 }

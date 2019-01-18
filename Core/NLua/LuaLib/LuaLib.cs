@@ -1,7 +1,7 @@
 /*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2014 Vinicius Jarina (viniciusjarina@gmail.com)
  * Copyright (C) 2003-2005 Fabio Mascarenhas de Queiroz.
  * Copyright (C) 2009 Joshua Simmons <simmons.44@gmail.com>
  * Copyright (C) 2012 Megax <http://megax.yeahunter.hu/>
@@ -26,6 +26,7 @@
  */
 using System;
 using System.IO;
+using System.Text;
 using NLua.Extensions;
 
 namespace NLua
@@ -274,6 +275,11 @@ namespace NLua
 			return LuaCore.LuaIsString (luaState, index) != 0;
 		}
 
+		public static bool LuaNetIsStringStrict (LuaState luaState, int index)
+		{
+			return LuaCore.LuaNetIsStringStrict (luaState, index) != 0;
+		}
+
 		public static bool LuaIsCFunction (LuaState luaState, int index)
 		{
 			return LuaCore.LuaIsCFunction (luaState, index);
@@ -282,11 +288,6 @@ namespace NLua
 		public static void LuaPushNil (LuaState luaState)
 		{
 			LuaCore.LuaPushNil (luaState);
-		}
-
-		public static void LuaCall (LuaState luaState, int nArgs, int nResults)
-		{
-			LuaCore.LuaCall (luaState, nArgs, nResults);
 		}
 
 		public static void LuaPushStdCallCFunction (LuaState luaState, LuaNativeFunction function)
@@ -384,7 +385,8 @@ namespace NLua
 
 		public static int LuaLLoadBuffer (LuaState luaState, string buff, string name)
 		{
-			return LuaCore.LuaNetLoadBuffer (luaState, buff, (uint)0, name);
+			var bytes = Encoding.UTF8.GetBytes(buff);
+			return LuaCore.LuaNetLoadBuffer (luaState, bytes, (uint)bytes.Length, name);
 		}
 
 		public static int LuaLLoadBuffer (LuaState luaState, byte [] buff, string name)

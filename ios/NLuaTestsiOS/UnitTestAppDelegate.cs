@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using MonoTouch.Foundation;
-using MonoTouch.UIKit;
+using Foundation;
+using UIKit;
 using MonoTouch.NUnit.UI;
 
 namespace NLuaTestsiOS
@@ -30,7 +30,7 @@ namespace NLuaTestsiOS
 			// create a new window instance based on the screen size
 			window = new UIWindow (UIScreen.MainScreen.Bounds);
 			runner = new TouchRunner (window);
-			runner.AutoStart = true;
+			//runner.AutoStart = true;
 			runner.TerminateAfterExecution = true;
 			// register every tests included in the main application/assembly
 			runner.Add (System.Reflection.Assembly.GetExecutingAssembly ());

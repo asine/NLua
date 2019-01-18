@@ -1,7 +1,7 @@
 ﻿/*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2015 Vinicius Jarina (viniciusjarina@gmail.com)
  * Copyright (C) 2003-2005 Fabio Mascarenhas de Queiroz.
  * Copyright (C) 2012 Megax <http://megax.yeahunter.hu/>
  * 
@@ -31,7 +31,7 @@ namespace NLua.Exceptions
 	/// Exceptions thrown by the Lua runtime because of errors in the script
 	/// </summary>
 	/// 
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !NETFX_CORE
 	[Serializable]
 #endif
 	public class LuaScriptException : LuaException
@@ -46,7 +46,7 @@ namespace NLua.Exceptions
 		/// <summary>
 		/// The position in the script where the exception was triggered.
 		/// </summary>
-#if SILVERLIGHT
+#if SILVERLIGHT && !WINDOWS_PHONE
 		public string Source { get { return source; } }
 #else
 		public override string Source { get { return source; } }

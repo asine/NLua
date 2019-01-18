@@ -1,7 +1,7 @@
 ﻿/*
  * This file is part of NLua.
  * 
- * Copyright (c) 2013 Vinicius Jarina (viniciusjarina@gmail.com)
+ * Copyright (c) 2015 Vinicius Jarina (viniciusjarina@gmail.com)
  * Copyright (C) 2003-2005 Fabio Mascarenhas de Queiroz.
  * Copyright (C) 2012 Megax <http://megax.yeahunter.hu/>
  * 
@@ -77,12 +77,12 @@ namespace NLua
 			if (type == null)
 				throw new ArgumentNullException ("type");
 
-			if (!type.IsClass)
+			if (!type.IsClass ())
 				throw new ArgumentException ("The type must be a class!", "type");
 			#endregion
 
-			foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.Public)) {
-				foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes(typeof(LuaGlobalAttribute), false)) {
+			foreach (var method in type.GetMethods (BindingFlags.Static | BindingFlags.Public)) {
+				foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes (typeof(LuaGlobalAttribute), false)) {
 					if (string.IsNullOrEmpty (attribute.Name))
 						lua.RegisterFunction (method.Name, null, method); // CLR name
 					else
@@ -108,7 +108,7 @@ namespace NLua
 
 			var type = typeof(T);
 
-			if (!type.IsEnum)
+			if (!type.IsEnum ())
 				throw new ArgumentException ("The type must be an enumeration!");
 
 #if SILVERLIGHT
